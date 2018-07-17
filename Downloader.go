@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -17,9 +16,14 @@ import (
 var wg sync.WaitGroup
 
 func main() {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter downloadLink: ")
-	downloadLink, _ := reader.ReadString('\n')
+	// reader := bufio.NewReader(os.Stdin)
+	// fmt.Print("Enter downloadLink: ")
+	// downloadLink, _ := reader.ReadString('\n')
+	if len(os.Args) == 1 {
+		fmt.Printf("pass the url")
+		return
+	}
+	downloadLink := os.Args[1]
 	downloadLink = strings.TrimSpace(downloadLink)
 	_, fileName := filepath.Split(downloadLink)
 	name, _ := url.QueryUnescape(fileName)
@@ -27,6 +31,7 @@ func main() {
 	res, _ := http.Head(downloadLink)
 	maps := res.Header
 	length, _ := strconv.Atoi(maps["Content-Length"][0])
+	// println(length)
 	// Get the content length from the header request
 	limit := 10                     // 10 Go-routines for the process so each downloads 18.7MB
 	lenSub := length / limit        // Bytes for each Go-routine
