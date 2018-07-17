@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,12 +18,13 @@ var wg sync.WaitGroup
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter Url: ")
-	url, _ := reader.ReadString('\n')
+	fmt.Print("Enter downloadLink: ")
+	downloadLink, _ := reader.ReadString('\n')
+	downloadLink = strings.TrimSpace(downloadLink)
+	_, fileName := filepath.Split(downloadLink)
+	name, _ := url.QueryUnescape(fileName)
 	start := time.Now()
-	url = strings.TrimSpace(url)
-	_, fileName := filepath.Split(url)
-	res, _ := http.Head(url)
+	res, _ := http.Head(downloadLink)
 	maps := res.Header
 	length, _ := strconv.Atoi(maps["Content-Length"][0])
 	// Get the content length from the header request
@@ -40,7 +42,7 @@ func main() {
 		}
 		go func(min int, max int, i int) {
 			client := &http.Client{}
-			req, _ := http.NewRequest("GET", url, nil)
+			req, _ := http.NewRequest("GET", downloadLink, nil)
 			rangeHeader := "bytes=" + strconv.Itoa(min) + "-" + strconv.Itoa(max-1) // Add the data for the Range header of the form "bytes=0-100"
 			req.Header.Add("Range", rangeHeader)
 			resp, err := client.Do(req)
@@ -55,8 +57,8 @@ func main() {
 	wg.Wait()
 	// Parts Downloaded
 	// Started Merge Files
-	os.Remove(fileName)
-	f, err := os.OpenFile(strings.TrimSpace(fileName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	os.Remove(name)
+	f, err := os.OpenFile(strings.TrimSpace(name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	isError(err)
 	defer f.Close()
 	for i := 0; i < limit; i++ {
