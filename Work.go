@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ type chunks struct {
 	max int
 	id  int
 	url string
+	dir string
 }
 
 func worker(i int, jobs <-chan chunks, results chan<- int) {
@@ -30,7 +32,8 @@ func worker(i int, jobs <-chan chunks, results chan<- int) {
 		isError(err)
 		defer resp.Body.Close()
 		reader, _ := ioutil.ReadAll(resp.Body)
-		ioutil.WriteFile(strconv.Itoa(j.id), []byte(string(reader)), 0x777) // Write to the file i as a byte array
+		location := strings.Replace(path.Join(j.dir, strconv.Itoa(j.id)), "/", "\\", -1)
+		ioutil.WriteFile(location, []byte(string(reader)), 0x777) // Write to the file i as a byte array
 		resp.Body.Close()
 		//fmt.Println("worker", i, "finished job", j.id)
 		results <- j.id
@@ -38,12 +41,11 @@ func worker(i int, jobs <-chan chunks, results chan<- int) {
 }
 
 func main() {
-	// defer profile.Start(profile.MemProfile).Stop()
-	// reader := bufio.NewReader(os.Stdin)
-	// fmt.Print("Enter downloadLink: ")
-	// downloadLink, _ := reader.ReadString('\n')
 	jobs := make(chan chunks, 100)
 	results := make(chan int, 100)
+	dir, err := ioutil.TempDir(os.TempDir(), "prefix")
+	//fmt.Println(strings.Replace(path.Join(dir, "2222"), "/", "\\", -1))
+	isError(err)
 	if len(os.Args) == 1 {
 		fmt.Printf("pass the url")
 		return
@@ -72,27 +74,28 @@ func main() {
 		if i == limit-1 {
 			max += diff // Add the remaining bytes in the last request
 		}
-		jobs <- chunks{id: i, min: min, max: max, url: downloadLink}
+		jobs <- chunks{id: i, min: min, max: max, url: downloadLink, dir: dir}
 	}
 	close(jobs)
 	// Finally we collect all the results of the work.
 	for a := 0; a < limit; a++ {
 		<-results
 	}
-	mergeParts(name, limit)
+	mergeParts(name, limit, dir)
 	fmt.Println("Time Taken: ", time.Since(start).String())
 }
-func mergeParts(name string, limit int) {
+func mergeParts(name string, limit int, dir string) {
 	os.Remove(name)
 	f, err := os.OpenFile(strings.TrimSpace(name), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	isError(err)
 	defer f.Close()
 	for i := 0; i < limit; i++ {
 		var part = strconv.Itoa(i)
-		content, err := ioutil.ReadFile(part) // just pass the file name
+		location := strings.Replace(path.Join(dir, part), "/", "\\", -1)
+		content, err := ioutil.ReadFile(location) // just pass the file name
 		isError(err)
 		f.WriteString(string(content))
-		os.Remove(part)
+		os.Remove(location)
 	}
 }
 func isError(err error) bool {

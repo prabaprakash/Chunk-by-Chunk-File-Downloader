@@ -1,0 +1,1 @@
+go tool pprof --pdf Downloader.exe C:\Users\paranganat\AppData\Local\Temp\profile578717895\mem.pprof > file.pdf
